@@ -7,11 +7,14 @@ import 'snake_home_page.dart';
 import 'dart:async';
 import 'dart:math';
 import 'game_screen.dart';
+import 'game_mode_selection.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const SnakeApp());
+  runApp(SnakeApp());
 }
 
 class SnakeApp extends StatelessWidget {
@@ -20,6 +23,7 @@ class SnakeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Snake Game',
       theme: ThemeData.dark().copyWith(
@@ -44,7 +48,7 @@ class AuthGate extends StatelessWidget {
           );
         }
         if (snapshot.hasData) {
-          return SnakeHomePage(user: snapshot.data!);
+          return GameModeSelectionScreen(user: snapshot.data!);
         }
         return const SignInScreen();
       },

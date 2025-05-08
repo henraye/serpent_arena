@@ -1,6 +1,7 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.cpp.serpent_arena.serpent_arena">
     <application
-        android:label="serpent_arena"
+        android:label="Serpent Arena"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

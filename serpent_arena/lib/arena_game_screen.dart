@@ -37,6 +37,7 @@ class _ArenaGameScreenState extends State<ArenaGameScreen> {
   @override
   void initState() {
     super.initState();
+    _focusNode.requestFocus();
     _fetchArenaStats();
     _startGame();
   }
@@ -48,8 +49,8 @@ class _ArenaGameScreenState extends State<ArenaGameScreen> {
             .doc(widget.user.uid)
             .get();
     setState(() {
-      arenaHighScore = doc.data()?['arenaHighScore'] ?? 0;
-      arenaSnakesDefeated = doc.data()?['arenaSnakesDefeated'] ?? 0;
+      arenaHighScore = doc.data()?['arena']?['highScore'] ?? 0;
+      arenaSnakesDefeated = doc.data()?['arena']?['snakesDefeated'] ?? 0;
     });
   }
 
@@ -74,6 +75,7 @@ class _ArenaGameScreenState extends State<ArenaGameScreen> {
       const Duration(milliseconds: 120),
       (_) => _gameTick(),
     );
+    _focusNode.requestFocus();
   }
 
   void _spawnApple() {
@@ -336,12 +338,14 @@ class _ArenaGameScreenState extends State<ArenaGameScreen> {
         .collection('users')
         .doc(widget.user.uid);
     final doc = await userDoc.get();
-    final prevHigh = doc.data()?['arenaHighScore'] ?? 0;
-    final prevDefeated = doc.data()?['arenaSnakesDefeated'] ?? 0;
+    final prevHigh = doc.data()?['arena']?['highScore'] ?? 0;
+    final prevDefeated = doc.data()?['arena']?['snakesDefeated'] ?? 0;
     bool newHigh = false;
     bool newDefeated = false;
     if (score > prevHigh) {
-      await userDoc.set({'arenaHighScore': score}, SetOptions(merge: true));
+      await userDoc.set({
+        'arena': {'highScore': score},
+      }, SetOptions(merge: true));
       setState(() {
         arenaHighScore = score;
       });
@@ -353,7 +357,7 @@ class _ArenaGameScreenState extends State<ArenaGameScreen> {
     }
     if (snakesDefeated > prevDefeated) {
       await userDoc.set({
-        'arenaSnakesDefeated': snakesDefeated,
+        'arena': {'snakesDefeated': snakesDefeated},
       }, SetOptions(merge: true));
       setState(() {
         arenaSnakesDefeated = snakesDefeated;
@@ -477,139 +481,158 @@ class _ArenaGameScreenState extends State<ArenaGameScreen> {
   Widget build(BuildContext context) {
     final boardWidth = colCount * cellSize;
     final boardHeight = rowCount * cellSize;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Arena Mode', style: TextStyle(color: Colors.white)),
-            const SizedBox(width: 24),
-            Text(
-              'Score: $score',
-              style: const TextStyle(color: Colors.greenAccent, fontSize: 18),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Snakes: $snakesDefeated',
-              style: const TextStyle(color: Colors.orangeAccent, fontSize: 18),
-            ),
-          ],
-        ),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: RawKeyboardListener(
-          focusNode: _focusNode,
-          autofocus: true,
-          onKey: (RawKeyEvent event) {
-            if (event is RawKeyDownEvent) {
-              final key = event.logicalKey.keyLabel.toLowerCase();
-              if (key == 'w') _changePlayerDirection('up');
-              if (key == 'a') _changePlayerDirection('left');
-              if (key == 's') _changePlayerDirection('down');
-              if (key == 'd') _changePlayerDirection('right');
-            }
-          },
-          child: GestureDetector(
-            onVerticalDragUpdate: (details) {
-              if (details.primaryDelta! < -5) {
-                _changePlayerDirection('up');
-              } else if (details.primaryDelta! > 5) {
-                _changePlayerDirection('down');
-              }
-            },
-            onHorizontalDragUpdate: (details) {
-              if (details.primaryDelta! < -5) {
-                _changePlayerDirection('left');
-              } else if (details.primaryDelta! > 5) {
-                _changePlayerDirection('right');
-              }
-            },
-            child: Container(
-              width: boardWidth,
-              height: boardHeight,
-              decoration: BoxDecoration(
-                color: const Color(0xFF181A1B),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Stack(
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text('Arena Mode', style: TextStyle(color: Colors.white)),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Apple
-                  Positioned(
-                    left: apple.dx * cellSize,
-                    top: apple.dy * cellSize,
-                    child: _Apple(size: cellSize),
-                  ),
-                  // Player snake
-                  for (int i = 0; i < playerSnake.length; i++)
-                    Positioned(
-                      left: playerSnake[i].dx * cellSize,
-                      top: playerSnake[i].dy * cellSize,
-                      child:
-                          i == 0
-                              ? _SnakeHead(size: cellSize)
-                              : _SnakeBlock(size: cellSize),
+                  Text(
+                    'Score: $score',
+                    style: const TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 18,
                     ),
-                  // AI snakes
-                  for (final snake in aiSnakes)
-                    for (int i = 0; i < snake.length; i++)
-                      Positioned(
-                        left: snake[i].dx * cellSize,
-                        top: snake[i].dy * cellSize,
-                        child: _AiSnakeBlock(size: cellSize, isHead: i == 0),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    'Snakes: $snakesDefeated',
+                    style: const TextStyle(
+                      color: Colors.orangeAccent,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        body: Center(
+          child: RawKeyboardListener(
+            focusNode: _focusNode,
+            autofocus: true,
+            onKey: (RawKeyEvent event) {
+              if (event is RawKeyDownEvent) {
+                final key = event.logicalKey.keyLabel.toLowerCase();
+                if (key == 'w') _changePlayerDirection('up');
+                if (key == 'a') _changePlayerDirection('left');
+                if (key == 's') _changePlayerDirection('down');
+                if (key == 'd') _changePlayerDirection('right');
+              }
+            },
+            child: GestureDetector(
+              onVerticalDragUpdate: (details) {
+                if (details.primaryDelta! < -5) {
+                  _changePlayerDirection('up');
+                } else if (details.primaryDelta! > 5) {
+                  _changePlayerDirection('down');
+                }
+              },
+              onHorizontalDragUpdate: (details) {
+                if (details.primaryDelta! < -5) {
+                  _changePlayerDirection('left');
+                } else if (details.primaryDelta! > 5) {
+                  _changePlayerDirection('right');
+                }
+              },
+              child: Container(
+                width: boardWidth,
+                height: boardHeight,
+                decoration: BoxDecoration(color: const Color(0xFF181A1B)),
+                child: Stack(
+                  children: [
+                    // Grid overlay
+                    CustomPaint(
+                      size: Size(boardWidth, boardHeight),
+                      painter: _GridPainter(
+                        rowCount: rowCount,
+                        colCount: colCount,
+                        cellSize: cellSize,
                       ),
-                  // Game Over overlay
-                  if (isGameOver)
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black54,
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                'Game Over',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _startGame,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF7ED957),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Restart',
+                    ),
+                    // Apple
+                    Positioned(
+                      left: apple.dx * cellSize,
+                      top: apple.dy * cellSize,
+                      child: _Apple(size: cellSize),
+                    ),
+                    // Player snake
+                    for (int i = 0; i < playerSnake.length; i++)
+                      Positioned(
+                        left: playerSnake[i].dx * cellSize,
+                        top: playerSnake[i].dy * cellSize,
+                        child:
+                            i == 0
+                                ? _SnakeHead(size: cellSize)
+                                : _SnakeBlock(size: cellSize),
+                      ),
+                    // AI snakes
+                    for (final snake in aiSnakes)
+                      for (int i = 0; i < snake.length; i++)
+                        Positioned(
+                          left: snake[i].dx * cellSize,
+                          top: snake[i].dy * cellSize,
+                          child: _AiSnakeBlock(size: cellSize, isHead: i == 0),
+                        ),
+                    // Game Over overlay
+                    if (isGameOver)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black54,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Game Over',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 20,
+                                    fontSize: 36,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _startGame,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Color(0xFF7ED957),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 32,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Restart',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -735,4 +758,36 @@ class _Apple extends StatelessWidget {
       ],
     );
   }
+}
+
+class _GridPainter extends CustomPainter {
+  final int rowCount;
+  final int colCount;
+  final double cellSize;
+  _GridPainter({
+    required this.rowCount,
+    required this.colCount,
+    required this.cellSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = Colors.white24
+          ..strokeWidth = 0.5;
+    // Draw vertical lines
+    for (int c = 0; c <= colCount; c++) {
+      final x = c * cellSize;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    // Draw horizontal lines
+    for (int r = 0; r <= rowCount; r++) {
+      final y = r * cellSize;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -31,6 +31,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    _focusNode.requestFocus();
     _fetchHighScore();
     _startGame();
   }
@@ -42,7 +43,7 @@ class _GameScreenState extends State<GameScreen> {
             .doc(widget.user.uid)
             .get();
     setState(() {
-      highScore = doc.data()?['highScore'] ?? 0;
+      highScore = doc.data()?['classic']?['highScore'] ?? 0;
     });
   }
 
@@ -57,6 +58,7 @@ class _GameScreenState extends State<GameScreen> {
       const Duration(milliseconds: 120),
       (_) => _moveSnake(),
     );
+    _focusNode.requestFocus();
   }
 
   void _spawnApple() {
@@ -127,10 +129,12 @@ class _GameScreenState extends State<GameScreen> {
         .collection('users')
         .doc(widget.user.uid);
     final doc = await userDoc.get();
-    final prevHigh = doc.data()?['highScore'] ?? 0;
+    final prevHigh = doc.data()?['classic']?['highScore'] ?? 0;
     bool isNewHigh = false;
     if (score > prevHigh) {
-      await userDoc.set({'highScore': score}, SetOptions(merge: true));
+      await userDoc.set({
+        'classic': {'highScore': score},
+      }, SetOptions(merge: true));
       setState(() {
         highScore = score;
       });
@@ -254,12 +258,18 @@ class _GameScreenState extends State<GameScreen> {
             child: Container(
               width: boardWidth,
               height: boardHeight,
-              decoration: BoxDecoration(
-                color: const Color(0xFF181A1B),
-                borderRadius: BorderRadius.circular(24),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFF181A1B)),
               child: Stack(
                 children: [
+                  // Grid overlay
+                  CustomPaint(
+                    size: Size(boardWidth, boardHeight),
+                    painter: _GridPainter(
+                      rowCount: rowCount,
+                      colCount: colCount,
+                      cellSize: cellSize,
+                    ),
+                  ),
                   // Apple
                   Positioned(
                     left: apple.dx * cellSize,
@@ -436,4 +446,36 @@ class _Apple extends StatelessWidget {
       ],
     );
   }
+}
+
+class _GridPainter extends CustomPainter {
+  final int rowCount;
+  final int colCount;
+  final double cellSize;
+  _GridPainter({
+    required this.rowCount,
+    required this.colCount,
+    required this.cellSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = Colors.white24
+          ..strokeWidth = 0.5;
+    // Draw vertical lines
+    for (int c = 0; c <= colCount; c++) {
+      final x = c * cellSize;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    // Draw horizontal lines
+    for (int r = 0; r <= rowCount; r++) {
+      final y = r * cellSize;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
